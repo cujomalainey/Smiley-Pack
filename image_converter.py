@@ -1,16 +1,23 @@
 import sys
 from PIL import Image
 
-if len(sys.argv) != 2:
-	exit("No file specified")
+files = sys.argv[1:len(sys.argv)]
+print("Frame Count: {}".format(len(files)))
+data = []
 
-filename = sys.argv[1]
+for f in files:
+    im = Image.open(f)  # Can be many different formats.
+    pix = im.load()
 
-im = Image.open(filename) #Can be many different formats.
-pix = im.load()
+    if im.size != (8, 8):
+        exit("Image with incorrect Dimensions")
 
-if im.size != (8, 8):
-	exit("Image with incorrect Dimensions")
-
-print(pix[0,0]) #Get the RGBA Value of the a pixel of an image
-# pix[x,y] = value # Set the RGBA Value of the image (tuple)
+    for y in range(0, 8):
+        for x in range(0, 8):
+            for c in range(0, 3):
+                data.append(pix[x, y][c])
+# make file
+with open("img.dat", "wb") as out:
+    # write to file
+    pixelBytes = bytearray(data)
+    out.write(pixelBytes)
