@@ -3,22 +3,21 @@
 #include "SPI.h"
 #include <SD.h>
 
-#define MATRIX_HEIGHT   8
-#define MATRIX_WIDTH    8
-#define NUMPIXELS       MATRIX_WIDTH * MATRIX_HEIGHT
-#define FRAME_SIZE      NUMPIXELS * 3
-#define PIN             9
-#define FRAMES          10
-#define MAX_BRIGHTNESS  255.0
-#define CAP_BRIGHTNESS  50
-
-#define DEBUG           FALSE
+#define MATRIX_HEIGHT     8
+#define MATRIX_WIDTH      8
+#define NUMPIXELS         (MATRIX_WIDTH * MATRIX_HEIGHT)
+#define FRAME_SIZE        (NUMPIXELS * 3)
+#define PIN               9
+#define MAX_BRIGHTNESS    255.0
+#define CAP_BRIGHTNESS    50
+#define RANGE_UPPER_BOUND 180
+#define RANGE_LOWER_BOUND 20
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
-const uint16_t levels[] = {20, 50, 75, 100, 150, 200, 250, 300, 350, 400, 425};
-
-uint8_t frame_index = FRAMES - 1;
+uint16_t frame_index;
+uint16_t frames;
+uint8_t  frame_gap;
 
 File file;
 
@@ -30,59 +29,58 @@ void update_leds(uint8_t frame);
 
 void setup() {
 	pixels.begin();
-	#if (DEBUG)
-		Serial.begin(9600);
-		while (!Serial) {;}
-	#endif
+	// Serial.begin(9600);
+	// while (!Serial) {;}
 	SD.begin();
-	#if (DEBUG)
-		Serial.println("Loading File");
-	#endif
+	// Serial.println("Loading File");
+
 	file = SD.open("img.dat");
 	if (!file) {
-		#if (DEBUG)
-			Serial.println("File failed to load");
-		#endif
+		// Serial.println("File failed to load");
 		return;
 	}
+	frames = file.size()/FRAME_SIZE;
+	frame_index = frames - 1;
+	frame_gap = ((RANGE_UPPER_BOUND - RANGE_LOWER_BOUND)/frames);
+	// Serial.print("File Size: ");
+	// Serial.println(file.size());
+	// Serial.print("Frame Count: ");
+	// Serial.println(frames);
+	// Serial.print("Frame Gap: ");
+	// Serial.println(frame_gap);
 	randomSeed(analogRead(0));
 }
 
 void loop() {
 	delay(500);
 	uint16_t val = analogRead(0);
-  	#if (DEBUG)
-		Serial.print("analog 0 is: ");
-		Serial.println(val);
-  	#endif
-  	if (frame_index == 0 && val < levels[frame_index]) {
+	// Serial.print("analog 0 is: ");
+	// Serial.println(val);
+
+  	if (frame_index == 0 && val < RANGE_LOWER_BOUND) {
   		// explode
   		for (int f = 0; f < 20; f++) {
   			flame();
   			delay(100);
   		}
   		clear_leds();
-  		frame_index = FRAMES - 1;
+  		frame_index = frames - 1;
   	}
-  	else if (val >= levels[frame_index] && frame_index + 1 < FRAMES) {
+  	else if (val >= (frame_gap * frame_index + RANGE_LOWER_BOUND) && frame_index < frames - 1) {
   		frame_index++;
   	}
-  	else if (val < levels[frame_index - 1]) {
+  	else if (val < (frame_gap * frame_index + RANGE_LOWER_BOUND)) {
   		frame_index--;
   	}
-	if (frame_index < 0) {
+	if (frame_index == frames - 1 && val > RANGE_UPPER_BOUND) {
 		clear_leds();
 	}
-	else {
-		update_leds(frame_index);
-	}
+	update_leds(frame_index);
 }
 
 void update_leds(uint8_t frame) {
-	#if (DEBUG)
-		Serial.print("Loading Frame: ");
-		Serial.println(frame);
-	#endif
+	// Serial.print("Loading Frame: ");
+	// Serial.println(frame);
 	file.seek(frame*FRAME_SIZE);
 	uint16_t t = millis();
 	for (int y = 0; y < MATRIX_HEIGHT; y++)
@@ -98,11 +96,6 @@ void update_leds(uint8_t frame) {
 		}
 	}
 	t = millis() - t;
-	#if (DEBUG)
-		Serial.print("Took: ");
-		Serial.println(t);
-		Serial.println("Displaying.");
-	#endif
 	pixels.show();
 }
 
