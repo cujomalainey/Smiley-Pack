@@ -10,7 +10,7 @@ for f in files:
     pix = im.load()
 
     if im.size != (8, 8):
-        exit("Image with incorrect Dimensions")
+        exit("Image ({}) with incorrect dimensions".format(f))
 
     for y in range(0, 8):
         for x in range(0, 8):
